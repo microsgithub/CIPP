@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Button,
   Card,
+  CardContent,
   Stack,
   Typography,
   Box,
@@ -11,24 +12,22 @@ import {
   Alert,
   IconButton,
   Tooltip,
-  ButtonGroup,
-  TextField,
-  InputAdornment,
 } from "@mui/material";
 import { Layout as DashboardLayout } from "/src/layouts/index.js";
 import {
+  PlayArrow,
   CheckCircle,
   Cancel,
   Info,
+  Public,
   Microsoft,
+  Description,
   Sync,
-  FilterAlt,
-  Close,
-  Search,
-  FactCheck,
 } from "@mui/icons-material";
 import { ArrowLeftIcon } from "@mui/x-date-pickers";
+import CippFormComponent from "/src/components/CippComponents/CippFormComponent";
 import standards from "/src/data/standards.json";
+import { CippApiResults } from "../../../../components/CippComponents/CippApiResults";
 import { CippApiDialog } from "../../../../components/CippComponents/CippApiDialog";
 import { SvgIcon } from "@mui/material";
 import { useForm } from "react-hook-form";
@@ -53,8 +52,6 @@ const Page = () => {
     },
   });
   const runReportDialog = useDialog();
-  const [filter, setFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
 
   const templateDetails = ApiGetCall({
     url: `/api/listStandardTemplates`,
@@ -241,27 +238,6 @@ const Page = () => {
   ]);
   const comparisonModeOptions = [{ label: "Compare Tenant to Standard", value: "standard" }];
 
-  const filteredData = comparisonData?.filter((standard) => {
-    const matchesFilter =
-      filter === "all" ||
-      (filter === "compliant" && standard.complianceStatus === "Compliant") ||
-      (filter === "nonCompliant" && standard.complianceStatus === "Non-Compliant");
-
-    const matchesSearch =
-      !searchQuery ||
-      standard.standardName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      standard.standardDescription.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesFilter && matchesSearch;
-  });
-
-  const allCount = comparisonData?.length || 0;
-  const compliantCount =
-    comparisonData?.filter((standard) => standard.complianceStatus === "Compliant").length || 0;
-  const nonCompliantCount =
-    comparisonData?.filter((standard) => standard.complianceStatus === "Non-Compliant").length || 0;
-  const compliancePercentage = allCount > 0 ? Math.round((compliantCount / allCount) * 100) : 0;
-
   return (
     <Box sx={{ flexGrow: 1, py: 4 }}>
       <Stack spacing={4} sx={{ px: 4 }}>
@@ -295,37 +271,17 @@ const Page = () => {
           <Stack alignItems="center" flexWrap="wrap" direction="row" spacing={2}>
             {comparisonApi.data?.find((comparison) => comparison.RowKey === currentTenant) && (
               <Stack alignItems="center" direction="row" spacing={1}>
-                <Chip
-                  icon={
-                    <SvgIcon fontSize="small">
-                      <FactCheck />
-                    </SvgIcon>
-                  }
-                  label={`${compliancePercentage}% Compliant`}
-                  variant="outlined"
-                  size="small"
-                  color={
-                    compliancePercentage === 100
-                      ? "success"
-                      : compliancePercentage >= 50
-                      ? "warning"
-                      : "error"
-                  }
-                  sx={{ ml: 2 }}
-                />
-                <Chip
-                  icon={
-                    <SvgIcon fontSize="small">
-                      <ClockIcon />
-                    </SvgIcon>
-                  }
-                  size="small"
-                  label={`Updated on ${new Date(
+                <SvgIcon color="text.secondary" fontSize="small">
+                  <ClockIcon />
+                </SvgIcon>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Updated on{" "}
+                  {new Date(
                     comparisonApi.data.find(
                       (comparison) => comparison.RowKey === currentTenant
                     ).LastRefresh
-                  ).toLocaleString()}`}
-                />
+                  ).toLocaleString()}
+                </Typography>
               </Stack>
             )}
           </Stack>
@@ -364,7 +320,7 @@ const Page = () => {
                     alignItems="center"
                     sx={{ mb: 2, px: 1 }}
                   >
-                    <Stack direction={{ xs: "column", sm: "row" }} alignItems="center" spacing={2}>
+                    <Stack direction="row" alignItems="center" spacing={2}>
                       <Skeleton variant="circular" width={40} height={40} />
                       <Skeleton variant="text" width={200} height={32} />
                     </Stack>
@@ -372,7 +328,7 @@ const Page = () => {
                   </Stack>
                 </Grid>
 
-                <Grid item size={{ xs: 12, md: 6 }}>
+                <Grid item size={6}>
                   <Card sx={{ height: "100%" }}>
                     <Stack
                       direction="row"
@@ -380,11 +336,7 @@ const Page = () => {
                       alignItems="center"
                       sx={{ p: 3 }}
                     >
-                      <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        alignItems="center"
-                        spacing={3}
-                      >
+                      <Stack direction="row" alignItems="center" spacing={3}>
                         <Skeleton variant="circular" width={40} height={40} />
                         <Stack>
                           <Skeleton variant="text" width={150} height={32} />
@@ -401,7 +353,7 @@ const Page = () => {
                   </Card>
                 </Grid>
 
-                <Grid item size={{ xs: 12, md: 6 }}>
+                <Grid item size={6}>
                   <Card sx={{ height: "100%" }}>
                     <Stack
                       direction="row"
@@ -430,75 +382,6 @@ const Page = () => {
           </>
         )}
 
-        <Divider sx={{ my: 2 }} />
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          sx={{
-            mt: 2,
-            alignItems: { xs: "flex-start", sm: "center" },
-            displayPrint: "none", // Hide filters in print view
-          }}
-        >
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ flexGrow: 1 }}>
-            <TextField
-              size="small"
-              variant="filled"
-              fullWidth={{ xs: true, sm: false }}
-              sx={{ width: { xs: "100%", sm: 350 } }}
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start" sx={{ margin: "0 !important" }}>
-                      <Search />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchQuery && (
-                    <InputAdornment position="end">
-                      <Tooltip title="Clear search">
-                        <IconButton
-                          size="small"
-                          onClick={() => setSearchQuery("")}
-                          aria-label="Clear search"
-                        >
-                          <Close />
-                        </IconButton>
-                      </Tooltip>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-          </Stack>
-          <ButtonGroup variant="outlined" color="primary" size="small">
-            <Button disabled={true} color="primary">
-              <SvgIcon fontSize="small">
-                <FilterAlt />
-              </SvgIcon>
-            </Button>
-            <Button
-              variant={filter === "all" ? "contained" : "outlined"}
-              onClick={() => setFilter("all")}
-            >
-              All ({allCount})
-            </Button>
-            <Button
-              variant={filter === "compliant" ? "contained" : "outlined"}
-              onClick={() => setFilter("compliant")}
-            >
-              Compliant ({compliantCount})
-            </Button>
-            <Button
-              variant={filter === "nonCompliant" ? "contained" : "outlined"}
-              onClick={() => setFilter("nonCompliant")}
-            >
-              Non-Compliant ({nonCompliantCount})
-            </Button>
-          </ButtonGroup>
-        </Stack>
         {comparisonApi.isError && (
           <Card sx={{ mb: 4, p: 3, borderRadius: 2, boxShadow: 2 }}>
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -549,21 +432,11 @@ const Page = () => {
           </Card>
         )}
 
-        {filteredData && filteredData.length === 0 && (
-          <Card sx={{ mb: 4, p: 3, borderRadius: 2, boxShadow: 2 }}>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              No standards match the selected filter criteria or search query.
-            </Alert>
-            <Typography variant="body2">
-              Try selecting a different filter or modifying the search query.
-            </Typography>
-          </Card>
-        )}
-        {filteredData &&
-          filteredData.length > 0 &&
-          filteredData.map((standard, index) => (
+        {comparisonData &&
+          comparisonData.length > 0 &&
+          comparisonData.map((standard, index) => (
             <Grid container spacing={3} key={index} sx={{ mb: 4 }}>
-              <Grid item size={{ xs: 12, md: 6 }}>
+              <Grid item size={6}>
                 <Card sx={{ height: "100%", borderRadius: 2, boxShadow: 2 }}>
                   <Stack
                     direction="row"
@@ -600,15 +473,13 @@ const Page = () => {
                         </Box>
                         <Stack>
                           <Typography variant="h6">{standard?.standardName}</Typography>
-                          <Box>
-                            <Chip
-                              label="Standard"
-                              size="small"
-                              color="info"
-                              variant="outlined"
-                              sx={{ mt: 1, px: 2 }}
-                            />
-                          </Box>
+                          <Chip
+                            label="Standard"
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                            sx={{ mt: 1 }}
+                          />
                         </Stack>
                       </Stack>
                     </Stack>
@@ -699,7 +570,7 @@ const Page = () => {
                 </Card>
               </Grid>
 
-              <Grid item size={{ xs: 12, md: 6 }}>
+              <Grid item size={6}>
                 <Card sx={{ height: "100%", borderRadius: 2, boxShadow: 2 }}>
                   <Stack
                     direction="row"
@@ -729,15 +600,13 @@ const Page = () => {
                         </Box>
                         <Stack>
                           <Typography variant="h6">{currentTenant}</Typography>
-                          <Box>
-                            <Chip
-                              label="Current Tenant"
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                              sx={{ mt: 1, px: 2 }}
-                            />
-                          </Box>
+                          <Chip
+                            label="Current Tenant"
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ mt: 1 }}
+                          />
                         </Stack>
                       </Stack>
                       <Box

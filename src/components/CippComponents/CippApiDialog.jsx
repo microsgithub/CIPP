@@ -282,36 +282,38 @@ export const CippApiDialog = (props) => {
       .reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
   };
 
-  const [linkClicked, setLinkClicked] = useState(false);
-
+  // Handling external link navigation
   useEffect(() => {
-    if (api.link && !linkClicked && row && Object.keys(row).length > 0) {
-      const timeoutId = setTimeout(() => {
-        const linkWithRowData = api.link.replace(/\[([^\]]+)\]/g, (_, key) => {
-          return getNestedValue(row, key) || `[${key}]`;
-        });
+    if (api.link && createDialog.open) {
+      const linkWithRowData = api.link.replace(/\[([^\]]+)\]/g, (_, key) => {
+        return getNestedValue(row, key) || `[${key}]`;
+      });
 
-        if (linkWithRowData.startsWith("/")) {
-          // Internal link navigation
-          setLinkClicked(true);
-          router.push(linkWithRowData, undefined, { shallow: true });
-        } else {
-          // External link navigation
-          setLinkClicked(true);
-          window.open(linkWithRowData, api.target || "_blank");
-        }
-      }, 0); // Delay execution to the next event loop cycle
-
-      return () => clearTimeout(timeoutId);
+      if (!linkWithRowData.startsWith("/")) {
+        window.open(linkWithRowData, api.target || "_blank");
+        createDialog.handleClose();
+      }
     }
-  }, [api.link, linkClicked, row, router]);
+  }, [api.link, createDialog.open]);
+
+  // Handling internal link navigation
+  if (api.link && createDialog.open) {
+    const linkWithRowData = api.link.replace(/\[([^\]]+)\]/g, (_, key) => {
+      return getNestedValue(row, key) || `[${key}]`;
+    });
+
+    if (linkWithRowData.startsWith("/")) {
+      router.push(linkWithRowData, undefined, { shallow: true });
+      createDialog.handleClose();
+    }
+  }
 
   useEffect(() => {
-    if (api.noConfirm && !api.link) {
+    if (api.noConfirm) {
       formHook.handleSubmit(onSubmit)(); // Submits the form on mount
       createDialog.handleClose(); // Closes the dialog after submitting
     }
-  }, [api.noConfirm, api.link]); // Run effect when noConfirm or link changes
+  }, [api.noConfirm]); // Run effect only when api.noConfirm changes
 
   const handleClose = () => {
     createDialog.handleClose();
@@ -334,52 +336,44 @@ export const CippApiDialog = (props) => {
   }
 
   return (
-    <>
-      {!api?.link && (
-        <Dialog fullWidth maxWidth="sm" onClose={handleClose} open={createDialog.open} {...other}>
-          <form onSubmit={formHook.handleSubmit(onSubmit)}>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogContent>
-              <Stack spacing={2}>{confirmText}</Stack>
-            </DialogContent>
-            <DialogContent>
-              <Grid container spacing={2}>
-                {fields &&
-                  fields.map((fieldProps, index) => {
-                    if (fieldProps?.api?.processFieldData) {
-                      fieldProps.api.data = processActionData(fieldProps.api.data, row);
-                    }
-                    return (
-                      <Grid item xs={12} key={index}>
-                        <CippFormComponent
-                          formControl={formHook}
-                          addedFieldData={addedFieldData}
-                          setAddedFieldData={setAddedFieldData}
-                          {...fieldProps}
-                        />
-                      </Grid>
-                    );
-                  })}
-              </Grid>
-            </DialogContent>
-            <DialogContent>
-              <CippApiResults apiObject={{ ...selectedType, data: partialResults }} />
-            </DialogContent>
-            <DialogActions>
-              <Button color="inherit" onClick={() => handleClose()}>
-                Close
-              </Button>
-              <Button
-                variant="contained"
-                type="submit"
-                disabled={isFormSubmitted && !allowResubmit}
-              >
-                {isFormSubmitted && allowResubmit ? "Reconfirm" : "Confirm"}
-              </Button>
-            </DialogActions>
-          </form>
-        </Dialog>
-      )}
-    </>
+    <Dialog fullWidth maxWidth="sm" onClose={handleClose} open={createDialog.open} {...other}>
+      <form onSubmit={formHook.handleSubmit(onSubmit)}>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>{confirmText}</Stack>
+        </DialogContent>
+        <DialogContent>
+          <Grid container spacing={2}>
+            {fields &&
+              fields.map((fieldProps, index) => {
+                if (fieldProps?.api?.processFieldData) {
+                  fieldProps.api.data = processActionData(fieldProps.api.data, row);
+                }
+                return (
+                  <Grid item xs={12} key={index}>
+                    <CippFormComponent
+                      formControl={formHook}
+                      addedFieldData={addedFieldData}
+                      setAddedFieldData={setAddedFieldData}
+                      {...fieldProps}
+                    />
+                  </Grid>
+                );
+              })}
+          </Grid>
+        </DialogContent>
+        <DialogContent>
+          <CippApiResults apiObject={{ ...selectedType, data: partialResults }} />
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => handleClose()}>
+            Close
+          </Button>
+          <Button variant="contained" type="submit" disabled={isFormSubmitted && !allowResubmit}>
+            {isFormSubmitted && allowResubmit ? "Reconfirm" : "Confirm"}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 };
